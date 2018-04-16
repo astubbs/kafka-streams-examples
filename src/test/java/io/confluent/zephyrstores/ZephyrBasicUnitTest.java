@@ -20,6 +20,7 @@ import io.confluent.examples.streams.WordCountLambdaExample;
 import io.confluent.examples.streams.WordCountScalaIntegrationTest;
 import io.confluent.examples.streams.kafka.EmbeddedSingleNodeKafkaCluster;
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerde;
+import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -33,7 +34,10 @@ import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
+import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.processor.StateStore;
+import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
@@ -79,28 +83,33 @@ public class ZephyrBasicUnitTest {
 //    props.setProperty(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
 //    props.setProperty(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
 
-    StreamsBuilder initialResponseProcessorBuilder = new StreamsBuilder();
+    StreamsBuilder builder = new StreamsBuilder();
 
     final Serde<GenericRecord> genericAvroSerde = new GenericAvroSerde();
 
-    String questionsAwaitingAnswersStoreName = "questions-awaiting-answers-store";
-    StoreBuilder questionsAwaitingAnswersStoreBuilder = Stores.keyValueStoreBuilder(
-        Stores.persistentKeyValueStore(questionsAwaitingAnswersStoreName),
-        genericAvroSerde,
-        genericAvroSerde);
+//    String questionsAwaitingAnswersStoreName = "questions-awaiting-answers-store";
+//    StoreBuilder store = Stores.keyValueStoreBuilder(
+//        Stores.persistentKeyValueStore(questionsAwaitingAnswersStoreName),
+//        genericAvroSerde,
+//        genericAvroSerde);
+//    builder.addStateStore(store);
 
-    initialResponseProcessorBuilder.addStateStore(questionsAwaitingAnswersStoreBuilder);
-
-    StreamsBuilder builder = new StreamsBuilder();
-    builder.table(inputTopic);
+    KTable<Object, Object> table = builder.table(inputTopic, Materialized.as("input-store"));
     Topology topology = builder.build();
+    String storeName = table.queryableStoreName();
 
     Properties config = new Properties();
     config.put(StreamsConfig.APPLICATION_ID_CONFIG, "test");
     config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "dummy:1234");
+    config.setProperty(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG,
+        Serdes.String().getClass().getName());
+    config.setProperty(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG,
+        Serdes.String().getClass().getName());
+
     TopologyTestDriver testDriver = new TopologyTestDriver(topology, config);
 
-    ConsumerRecordFactory<String, String> factory = new ConsumerRecordFactory<String, String>(inputTopic,
+    ConsumerRecordFactory<String, String> factory = new ConsumerRecordFactory<String, String>(
+        inputTopic,
         new StringSerializer(), new StringSerializer());
 
     StringSerializer strSerializer = new StringSerializer();
@@ -115,6 +124,12 @@ public class ZephyrBasicUnitTest {
     ProducerRecord<String, String> record3 = testDriver
         .readOutput("output-topic-2", strDeserializer, strDeserializer);
 
+    KeyValueStore stateStore = testDriver.getKeyValueStore(storeName);
+    Map<String, StateStore> allStateStores = testDriver.getAllStateStores();
+    Object key1 = stateStore.get("key1");
+    assertThat(key1).isEqualTo("value1");
+
+    assertThat(key1).isEqualTo("value1");
   }
 
   @Test
