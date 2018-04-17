@@ -245,8 +245,17 @@
           <version>${scalatest.version}</version>
           <scope>test</scope>
       </dependency>
+      <dependency>
+        <groupId>io.confluent</groupId>
+        <artifactId>rest-utils</artifactId>
+        <version>4.1.0-SNAPSHOT</version>
+      </dependency>
+      <dependency>
+        <groupId>io.confluent</groupId>
+        <artifactId>rest-utils-test</artifactId>
+        <version>4.1.0-SNAPSHOT</version>
+      </dependency>
     </dependencies>
-
     <build>
 
         <pluginManagement>

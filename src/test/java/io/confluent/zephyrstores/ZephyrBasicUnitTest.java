@@ -15,41 +15,29 @@
  */
 package io.confluent.zephyrstores;
 
-import io.confluent.examples.streams.IntegrationTestUtils;
 import io.confluent.examples.streams.WordCountLambdaExample;
 import io.confluent.examples.streams.WordCountScalaIntegrationTest;
-import io.confluent.examples.streams.kafka.EmbeddedSingleNodeKafkaCluster;
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerde;
 import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.*;
-import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
-import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.Materialized;
-import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
-import org.apache.kafka.streams.state.StoreBuilder;
-import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
-import org.apache.kafka.test.TestUtils;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
-import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -128,6 +116,17 @@ public class ZephyrBasicUnitTest {
     Map<String, StateStore> allStateStores = testDriver.getAllStateStores();
     Object key1 = stateStore.get("key1");
     assertThat(key1).isEqualTo("value1");
+
+    /////////
+
+
+    ZephyrStoresApplication zephyrStores = new ZephyrStoresApplication();
+    zephyrStores.expose(storeName, stateStore);
+//    zephyrStores.exposeAll(allStateStores);
+    zephyrStores.start();
+
+
+
 
     assertThat(key1).isEqualTo("value1");
   }
