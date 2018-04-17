@@ -1,11 +1,11 @@
-/*
- * Copyright Confluent Inc.
+/**
+ * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,64 +13,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.confluent.zephyrstores;
+package io.confluent.streams.zephyrstores;
 
-import io.confluent.examples.streams.WordCountLambdaExample;
-import io.confluent.examples.streams.WordCountScalaIntegrationTest;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerde;
-import java.util.Map;
+import io.confluent.rest.EmbeddedServerTestHarness;
+import io.confluent.rest.RestConfigException;
+import java.util.Properties;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.core.Response;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.*;
-import org.apache.kafka.streams.KeyValue;
+import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.Materialized;
-import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * End-to-end integration test based on {@link WordCountLambdaExample}, using an embedded Kafka
- * cluster.
- *
- * See {@link WordCountLambdaExample} for further documentation.
- *
- * See {@link WordCountScalaIntegrationTest} for the equivalent Scala example.
- *
- * Note: This example uses lambda expressions and thus works with Java 8+ only.
+ * This tests a single resource by setting up a Jersey-based test server embedded in the application.
+ * This is intended to unit test a single resource class, not the entire collection of resources.
+ * EmbeddedServerTestHarness does most of the heavy lifting so you only need to issue requests and
+ * check responses.
  */
-public class ZephyrBasicUnitTest {
-
-//  @ClassRule
-//  public static final EmbeddedSingleNodeKafkaCluster CLUSTER = new EmbeddedSingleNodeKafkaCluster();
+public class ZephyrResourceTest extends EmbeddedServerTestHarness<ZephyrRestConfig, ZephyrStoresApplication> {
+  private final static String mediatype = "application/vnd.hello.v1+json";
 
   private static final String inputTopic = "inputTopic";
   private static final String outputTopic = "outputTopic";
 
-  @BeforeClass
-  public static void startKafkaCluster() throws Exception {
+  ZephyrResource resource;
+
+  public ZephyrResourceTest() throws RestConfigException {
+    // We need to specify which resources we want available, i.e. the ones we need to test. If we need
+    // access to the server Configuration, as HelloWorldResource does, a default config is available
+    // in the 'config' field.
+    resource = new ZephyrResource(config);
+    addResource(resource);
   }
 
   @Test
-  public void basicQuery() throws Exception {
-    Properties props = new Properties();
-//    props.setProperty(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9091");
-//    props.setProperty(StreamsConfig.DEFAULT_TIMESTAMP_EXTRACTOR_CLASS_CONFIG, CustomTimestampExtractor.class.getName());
-//    props.setProperty(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-//    props.setProperty(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-
+  public void testHello() {
     StreamsBuilder builder = new StreamsBuilder();
 
     final Serde<GenericRecord> genericAvroSerde = new GenericAvroSerde();
@@ -113,49 +106,43 @@ public class ZephyrBasicUnitTest {
         .readOutput("output-topic-2", strDeserializer, strDeserializer);
 
     KeyValueStore stateStore = testDriver.getKeyValueStore(storeName);
-    Map<String, StateStore> allStateStores = testDriver.getAllStateStores();
+//    Map<String, ReadOnlyKeyValueStore> allStateStores = testDriver.getAllStateStores();
     Object key1 = stateStore.get("key1");
     assertThat(key1).isEqualTo("value1");
 
     /////////
 
 
-    ZephyrStoresApplication zephyrStores = new ZephyrStoresApplication();
-    zephyrStores.expose(storeName, stateStore);
-//    zephyrStores.exposeAll(allStateStores);
-    zephyrStores.start();
-
+    resource.expose(storeName, stateStore);
+//    resource.exposeAll(allStateStores);
 
 
 
     assertThat(key1).isEqualTo("value1");
+
+
+    //////
+
+
+    String acceptHeader = mediatype;
+    String contextPath = "/" + storeName;
+    Response response = request(contextPath, acceptHeader, "key", "key1").get();
+    // The response should indicate success and have the expected content type
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(mediatype, response.getMediaType().toString());
+
+    // We should also be able to parse it as the expected output format
+    final ZephyrResource.HelloResponse message = response.readEntity(ZephyrResource.HelloResponse.class);
+    // And it should contain the expected message
+    assertEquals("Hello, World!", message.getMessage());
   }
 
-  @Test
-  public void shouldCountWords() throws Exception {
-    List<String> inputValues = Arrays.asList(
-        "Hello Kafka Streams",
-        "All streams lead to Kafka",
-        "Join Kafka Summit",
-        "И теперь пошли русские слова"
-    );
-    List<KeyValue<String, Long>> expectedWordCounts = Arrays.asList(
-        new KeyValue<>("hello", 1L),
-        new KeyValue<>("all", 1L),
-        new KeyValue<>("streams", 2L),
-        new KeyValue<>("lead", 1L),
-        new KeyValue<>("to", 1L),
-        new KeyValue<>("join", 1L),
-        new KeyValue<>("kafka", 3L),
-        new KeyValue<>("summit", 1L),
-        new KeyValue<>("и", 1L),
-        new KeyValue<>("теперь", 1L),
-        new KeyValue<>("пошли", 1L),
-        new KeyValue<>("русские", 1L),
-        new KeyValue<>("слова", 1L)
-    );
-
-//    assertThat(actualWordCounts).containsExactlyElementsOf(expectedWordCounts);
+  protected Invocation.Builder request(String target, String mediatype, String param, String value) {
+    Invocation.Builder builder = getJerseyTest().target(target).queryParam(param, value).request();
+    if (mediatype != null) {
+      builder.accept(mediatype);
+    }
+    return builder;
   }
 
 }

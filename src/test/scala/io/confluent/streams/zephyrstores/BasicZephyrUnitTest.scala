@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.confluent.zephyrstores
+package io.confluent.streams.zephyrstores
 
 import java.lang.{Long => JLong}
 import java.util.Properties

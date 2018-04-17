@@ -1,33 +1,33 @@
-package io.confluent.zephyrstores;
+package io.confluent.streams.zephyrstores;
 
 import io.confluent.rest.Application;
 import java.util.Map;
 import java.util.TreeMap;
 import javax.ws.rs.core.Configurable;
-import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.glassfish.jersey.servlet.ServletProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZephyrStores extends Application<ZephyrRestConfig> implements StatestoreExposer {
+public class ZephyrStoresApplication extends Application<ZephyrRestConfig> implements
+    StatestoreExposer {
 
-  private static final Logger log = LoggerFactory.getLogger(ZephyrStores.class);
+  private static final Logger log = LoggerFactory.getLogger(ZephyrStoresApplication.class);
 
-  ZephyrStores app;
+  ZephyrStoresApplication app;
   StatestoreExposer exposer;
 
-  public ZephyrStores() {
+  public ZephyrStoresApplication() {
     super(new ZephyrRestConfig());
   }
 
-  public ZephyrStores(ZephyrRestConfig config) {
+  public ZephyrStoresApplication(ZephyrRestConfig config) {
     super(config);
   }
 
   @Override
   public void setupResources(Configurable<?> configurable, ZephyrRestConfig zephyrRestConfig) {
-    exposer = new ZephyerResource(zephyrRestConfig);
+    exposer = new ZephyrResource(zephyrRestConfig);
     configurable.register(exposer);
     configurable.property(ServletProperties.FILTER_STATIC_CONTENT_REGEX, "/(static/.*|.*\\.html|)");
   }
@@ -43,7 +43,7 @@ public class ZephyrStores extends Application<ZephyrRestConfig> implements State
 //        settings.put(HelloWorldRestConfig.GREETING_CONFIG, args[0]);
 //      }
       ZephyrRestConfig config = new ZephyrRestConfig(settings);
-      app = new ZephyrStores(config);
+      app = new ZephyrStoresApplication(config);
       app.start();
       log.info("Server started, listening for requests...");
 //      app.join();
@@ -60,12 +60,13 @@ public class ZephyrStores extends Application<ZephyrRestConfig> implements State
     app.shutdown();
   }
 
-  public void exposeAll(Map<String, StateStore> allStateStores) {
+  public void exposeAll(Map<String, ReadOnlyKeyValueStore> allStateStores) {
     exposer.exposeAll(allStateStores);
   }
 
   @Override
   public void expose(String exposedName, ReadOnlyKeyValueStore ss) {
+    assert (ss != null);
     exposer.expose(exposedName, ss);
   }
 

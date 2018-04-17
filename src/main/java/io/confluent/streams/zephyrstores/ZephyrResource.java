@@ -1,28 +1,30 @@
-package io.confluent.zephyrstores;
+package io.confluent.streams.zephyrstores;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.confluent.rest.annotations.PerformanceMetric;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import org.apache.kafka.streams.processor.StateStore;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.Request;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.hibernate.validator.constraints.NotEmpty;
 
-@Path("/hello")
+@Path("/")
 @Produces("application/vnd.hello.v1+json")
-public class ZephyerResource implements StatestoreExposer {
+public class ZephyrResource implements StatestoreExposer {
 
   ZephyrRestConfig config;
 
-  Map stores;
+  Map<String, ReadOnlyKeyValueStore> stores;
 
-  public ZephyerResource(ZephyrRestConfig config) {
+  public ZephyrResource(ZephyrRestConfig config) {
     this.config = config;
-    this.stores = Collections.emptyMap();
+    this.stores = new HashMap();
   }
 
   @Override
@@ -31,7 +33,7 @@ public class ZephyerResource implements StatestoreExposer {
   }
 
   @Override
-  public void exposeAll(Map<String, StateStore> allStateStores) {
+  public void exposeAll(Map<String, ReadOnlyKeyValueStore> allStateStores) {
     stores.putAll(allStateStores);
   }
 
@@ -55,9 +57,16 @@ public class ZephyerResource implements StatestoreExposer {
     }
   }
 
-  @GET
+  @GET()
+  @Path("{storeName}/")
   @PerformanceMetric("key-get")
-  public HelloResponse get(@QueryParam("key") String key) {
+  public HelloResponse get(@PathParam("storeName") String storeName,
+      @QueryParam("key") String key, @Context Request request) {
+    if (key == null) {
+      throw new RuntimeException("Null key");
+    }
+    ReadOnlyKeyValueStore store = this.stores.get(storeName);
+    Object value = store.get(key);
     // Use a configuration setting to control the message that's written. The name is extracted from
     // the query parameter "name", or defaults to "World". You can test this API with curl:
     // curl http://localhost:8080/hello
@@ -67,6 +76,6 @@ public class ZephyerResource implements StatestoreExposer {
     return new HelloResponse(
 //        String.format(config.getString(HelloWorldRestConfig.GREETING_CONFIG),
 //            (name == null ? "World" : name)));
-        "requested: "+key);
+        "requested: " + key + " v: " + value);
   }
 }
