@@ -15,6 +15,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Request;
+import javax.ws.rs.core.UriInfo;
 import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
@@ -77,9 +78,7 @@ public class ZephyrResource implements StatestoreExposer {
   @GET()
   @Path("/{storeName}")
   @PerformanceMetric("get-all")
-  public List getAll(@NotNull @PathParam("storeName") String storeName,
-      @Context Request request) {
-
+  public List getAll(@NotNull @PathParam("storeName") String storeName) {
     ReadOnlyKeyValueStore store = this.stores.get(storeName);
     if (store == null) {
       throw Errors.storeNotFoundException(storeName);

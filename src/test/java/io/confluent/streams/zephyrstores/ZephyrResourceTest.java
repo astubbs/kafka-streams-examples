@@ -138,18 +138,18 @@ public class ZephyrResourceTest extends
 
   @Test
   @Ignore
-  public void testGetWithMissingKey() {
-    Response responseNoKey = request(contextPath, acceptHeader).get();
-    assertEquals(Status.BAD_REQUEST.getStatusCode(), responseNoKey.getStatus());
-    assertThat(responseNoKey.getEntity()).isEqualTo("Missing key param.");
+  public void testGetAllWithWrongKeyParamName() {
+    Response responseWrongKey = request(contextPath, acceptHeader, "unrecognised-param",
+        "what-is-this?").get();
+    assertEquals(Status.BAD_REQUEST.getStatusCode(), responseWrongKey.getStatus());
+    assertThat(responseWrongKey.getEntity()).isEqualTo("Wrong key param.");
   }
 
   @Test
   @Ignore
   public void testGetWithWrongKeyParamName() {
-    // missing key
-    Response responseWrongKey = request(contextPath, acceptHeader, "key-missing", "wrong-key")
-        .get();
+    Response responseWrongKey = request(contextPath + "/key1", acceptHeader, "unrecognised-param",
+        "what-is-this?").get();
     assertEquals(Status.BAD_REQUEST.getStatusCode(), responseWrongKey.getStatus());
     assertThat(responseWrongKey.getEntity()).isEqualTo("Wrong key param.");
   }
@@ -165,34 +165,12 @@ public class ZephyrResourceTest extends
   }
 
   @Test
-  @Ignore
-  public void testGetKeyAsParamNotPath() {
-    // wrong key
-    Response responseWrongKeyTwo = request(contextPath, acceptHeader, "key", "key1").get();
-    assertEquals(Status.NOT_FOUND.getStatusCode(), responseWrongKeyTwo.getStatus());
-    assertThat(responseWrongKeyTwo.getEntity())
-        .isEqualTo("Key missing key not found in store 'a-store'.");
-  }
-
-  @Test
-  @Ignore
   public void testGetStoreNotFound() {
-    // wrong key
-    Response responseWrongKeyTwo = request("/wrong-store-name", acceptHeader, "key", "key1").get();
+    Response responseWrongKeyTwo = request("/wrong-store-name", acceptHeader).get();
     assertEquals(Status.NOT_FOUND.getStatusCode(), responseWrongKeyTwo.getStatus());
-    assertThat(responseWrongKeyTwo.getEntity())
-        .isEqualTo("Key 'wrong-key' not found in store 'a-store'.");
+    assertThat(responseWrongKeyTwo.readEntity(ErrorMessage.class).getMessage())
+        .isEqualTo("Store 'wrong-store-name' not found.");
   }
-
-//  @Test
-//  public void testGetWrongKeyEmptyResponse() {
-//    // wrong key - empty response option
-//    Response response = request(contextPath, acceptHeader, "key", "wrong-key").get();
-//    assertEquals(Status.OK.getStatusCode(), response.getStatus());
-//    ZephyrResource.HelloResponse messageWrongKeyThree = response
-//        .readEntity(ZephyrResource.HelloResponse.class);
-//    assertEquals("", messageWrongKeyThree.getMessage());
-//  }
 
   @Test
   @Ignore
@@ -224,7 +202,8 @@ public class ZephyrResourceTest extends
     List all = response.readEntity(List.class);
     assertThat(all).hasSize(3);
     String asString = Arrays.toString(all.toArray());
-    assertEquals("[{key=key1, value=value1}, {key=key2, value=value2}, {key=key3, value=value3}]", asString);
+    assertEquals("[{key=key1, value=value1}, {key=key2, value=value2}, {key=key3, value=value3}]",
+        asString);
   }
 
   @Test
