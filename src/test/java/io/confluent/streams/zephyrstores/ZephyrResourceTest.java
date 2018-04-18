@@ -19,6 +19,14 @@ import static org.junit.Assert.assertEquals;
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerde;
 import io.confluent.rest.EmbeddedServerTestHarness;
 import io.confluent.rest.RestConfigException;
+import io.confluent.rest.entities.ErrorMessage;
+import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
+import io.confluent.rest.exceptions.GenericExceptionMapper;
+import io.confluent.rest.exceptions.RestException;
+import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.util.List;
 import java.util.Properties;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.Response;
@@ -38,6 +46,7 @@ import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
 import org.apache.kafka.test.TestUtils;
+import org.assertj.core.util.Lists;
 import org.junit.Test;
 
 public class ZephyrResourceTest extends
@@ -51,9 +60,15 @@ public class ZephyrResourceTest extends
   static ZephyrResource resource;
 
   public ZephyrResourceTest() throws RestConfigException {
-    resource = new ZephyrResource(config);
+    if (resource == null) {
+      resource = new ZephyrResource(config);
+      setupResource();
+    }
     addResource(resource);
-    setupResource();
+    addResource(ConstraintViolationExceptionMapper.class);
+    addResource(new WebApplicationExceptionMapper(config));
+    addResource(new GenericExceptionMapper(config));
+    addResource(new WebApplicationExceptionMapper(config));
   }
 
   private static TopologyTestDriver testDriver;
@@ -86,6 +101,8 @@ public class ZephyrResourceTest extends
     StringDeserializer strDeserializer = new StringDeserializer();
 
     testDriver.pipeInput(factory.create(inputTopic, "key1", "value1"));
+    testDriver.pipeInput(factory.create(inputTopic, "key2", "value2"));
+    testDriver.pipeInput(factory.create(inputTopic, "key3", "value3"));
 
     KeyValueStore stateStore = testDriver.getKeyValueStore(storeName);
     resource.expose(storeName, stateStore);
@@ -107,24 +124,20 @@ public class ZephyrResourceTest extends
 
   @Test
   public void testBasicResourceGet() {
-    String acceptHeader = mediatype;
-    String contextPath = "/" + storeName;
-    Response response = request(contextPath, acceptHeader, "key", "key1").get();
+    Response response = request(contextPath + "/key1", acceptHeader).get();
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertEquals(mediatype, response.getMediaType().toString());
 
-    // We should also be able to parse it as the expected output format
     final ZephyrResource.HelloResponse message = response
         .readEntity(ZephyrResource.HelloResponse.class);
-    // And it should contain the expected message
-    assertEquals("Hello, World!", message.getMessage());
+    assertEquals("value1", message.getMessage());
   }
 
   @Test
   public void testGetWithMissingKey() {
-    // missing key
     Response responseNoKey = request(contextPath, acceptHeader).get();
     assertEquals(Status.BAD_REQUEST.getStatusCode(), responseNoKey.getStatus());
+    assertThat(responseNoKey.getEntity()).isEqualTo("Missing key param.");
   }
 
   @Test
@@ -133,24 +146,46 @@ public class ZephyrResourceTest extends
     Response responseWrongKey = request(contextPath, acceptHeader, "key-missing", "wrong-key")
         .get();
     assertEquals(Status.BAD_REQUEST.getStatusCode(), responseWrongKey.getStatus());
+    assertThat(responseWrongKey.getEntity()).isEqualTo("Wrong key param.");
   }
 
   @Test
-  public void testGetWrongKey() {
+  public void testGetKeyNotFound() {
+    String path = "/input-store/wrong-key";
+    Response response = request(path, acceptHeader).get();
+    assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
+    ErrorMessage errorMessage = response.readEntity(ErrorMessage.class);
+    assertThat(errorMessage.getMessage())
+        .isEqualTo("Key 'wrong-key' not found in store 'input-store'.");
+  }
+
+  @Test
+  public void testGetKeyAsParamNotPath() {
     // wrong key
-    Response responseWrongKeyTwo = request(contextPath, acceptHeader, "key", "wrong-key").get();
-    assertEquals(Status.NO_CONTENT.getStatusCode(), responseWrongKeyTwo.getStatus());
+    Response responseWrongKeyTwo = request(contextPath, acceptHeader, "key", "key1").get();
+    assertEquals(Status.NOT_FOUND.getStatusCode(), responseWrongKeyTwo.getStatus());
+    assertThat(responseWrongKeyTwo.getEntity())
+        .isEqualTo("Key missing key not found in store 'a-store'.");
   }
 
   @Test
-  public void testGetWringKeyEmptyResponse() {
-    // wrong key - empty response option
-    Response response = request(contextPath, acceptHeader, "key", "wrong-key").get();
-    assertEquals(Status.OK.getStatusCode(), response.getStatus());
-    ZephyrResource.HelloResponse messageWrongKeyThree = response
-        .readEntity(ZephyrResource.HelloResponse.class);
-    assertEquals("", messageWrongKeyThree.getMessage());
+  public void testGetStoreNotFound() {
+    // wrong key
+    Response responseWrongKeyTwo = request("/wrong-store-name", acceptHeader, "key", "key1").get();
+    assertEquals(Status.NOT_FOUND.getStatusCode(), responseWrongKeyTwo.getStatus());
+    assertThat(responseWrongKeyTwo.getEntity())
+        .isEqualTo("Key 'wrong-key' not found in store 'a-store'.");
   }
+
+//  @Test
+//  public void testGetWringKeyEmptyResponse() {
+//    // wrong key - empty response option
+//    Response response = request(contextPath, acceptHeader, "key", "wrong-key").get();
+//    assertEquals(Status.OK.getStatusCode(), response.getStatus());
+//    ZephyrResource.HelloResponse messageWrongKeyThree = response
+//        .readEntity(ZephyrResource.HelloResponse.class);
+//    assertEquals("", messageWrongKeyThree.getMessage());
+//  }
 
   @Test
   public void testGetFromWindowStore() {
@@ -174,16 +209,22 @@ public class ZephyrResourceTest extends
 
   @Test
   public void testGetAllKeys() {
-    // get all keys
-    Response response = request(contextPath, acceptHeader, "key", "wrong-key").get();
+    Response response = request("/store-name", acceptHeader).get();
     assertEquals(Status.OK.getStatusCode(), response.getStatus());
     ZephyrResource.HelloResponse messageWrongKeyThree = response
         .readEntity(ZephyrResource.HelloResponse.class);
+    List pairs = Lists.emptyList();
+    assertThat(pairs).hasSize(3);
     assertEquals("", messageWrongKeyThree.getMessage());
   }
 
 //  @Test
 //  public void testGetAvroFormat(){
+//    throw new NotImplementedException();
+//  }
+
+//  @Test
+//  public void testGetCompoundKey(){
 //    throw new NotImplementedException();
 //  }
 
