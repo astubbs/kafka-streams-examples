@@ -47,6 +47,7 @@ import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
 import org.apache.kafka.test.TestUtils;
 import org.assertj.core.util.Lists;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class ZephyrResourceTest extends
@@ -134,6 +135,7 @@ public class ZephyrResourceTest extends
   }
 
   @Test
+  @Ignore
   public void testGetWithMissingKey() {
     Response responseNoKey = request(contextPath, acceptHeader).get();
     assertEquals(Status.BAD_REQUEST.getStatusCode(), responseNoKey.getStatus());
@@ -141,6 +143,7 @@ public class ZephyrResourceTest extends
   }
 
   @Test
+  @Ignore
   public void testGetWithWrongKeyParamName() {
     // missing key
     Response responseWrongKey = request(contextPath, acceptHeader, "key-missing", "wrong-key")
@@ -160,6 +163,7 @@ public class ZephyrResourceTest extends
   }
 
   @Test
+  @Ignore
   public void testGetKeyAsParamNotPath() {
     // wrong key
     Response responseWrongKeyTwo = request(contextPath, acceptHeader, "key", "key1").get();
@@ -169,6 +173,7 @@ public class ZephyrResourceTest extends
   }
 
   @Test
+  @Ignore
   public void testGetStoreNotFound() {
     // wrong key
     Response responseWrongKeyTwo = request("/wrong-store-name", acceptHeader, "key", "key1").get();
@@ -178,7 +183,7 @@ public class ZephyrResourceTest extends
   }
 
 //  @Test
-//  public void testGetWringKeyEmptyResponse() {
+//  public void testGetWrongKeyEmptyResponse() {
 //    // wrong key - empty response option
 //    Response response = request(contextPath, acceptHeader, "key", "wrong-key").get();
 //    assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -188,6 +193,7 @@ public class ZephyrResourceTest extends
 //  }
 
   @Test
+  @Ignore
   public void testGetFromWindowStore() {
     // window store
     Response response = request(contextPath, acceptHeader, "key", "wrong-key").get();
@@ -198,6 +204,7 @@ public class ZephyrResourceTest extends
   }
 
   @Test
+  @Ignore
   public void testGetWithRangeQuery() {
     // range query
     Response response = request(contextPath, acceptHeader, "key", "wrong-key").get();
@@ -218,15 +225,17 @@ public class ZephyrResourceTest extends
     assertEquals("", messageWrongKeyThree.getMessage());
   }
 
-//  @Test
-//  public void testGetAvroFormat(){
-//    throw new NotImplementedException();
-//  }
+  @Test
+  @Ignore
+  public void testGetAvroFormat(){
+    throw new NotImplementedException();
+  }
 
-//  @Test
-//  public void testGetCompoundKey(){
-//    throw new NotImplementedException();
-//  }
+  @Test
+  @Ignore
+  public void testGetCompoundKey(){
+    throw new NotImplementedException();
+  }
 
   protected Invocation.Builder request(String target, String mediatype, String param,
       String value) {
