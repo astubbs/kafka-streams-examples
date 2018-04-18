@@ -1,8 +1,11 @@
 package io.confluent.streams.zephyrstores;
 
+import avro.shaded.com.google.common.collect.Lists;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.confluent.rest.annotations.PerformanceMetric;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.GET;
@@ -13,6 +16,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Request;
 import org.apache.commons.lang.StringUtils;
+import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.hibernate.validator.constraints.NotEmpty;
@@ -69,26 +73,25 @@ public class ZephyrResource implements StatestoreExposer {
       return message;
     }
   }
-//
-//  @GET()
-//  @Path("/{storeName}")
-//  @PerformanceMetric("get-all")
-//  public HelloResponse getAll(@NotNull @PathParam("storeName") String storeName,
-//      @Context Request request) {
-//
-//    ReadOnlyKeyValueStore store = this.stores.get(storeName);
-//    if (store == null) {
-//      throw Errors.storeNotFoundException(storeName);
-//    }
-//
-//    log.debug(String.format("Requested all entries in store: %s", storeName));
-//    String message = store.all().toString();
-//    return new HelloResponse(
-////        String.format(config.getString(HelloWorldRestConfig.GREETING_CONFIG),
-////            (name == null ? "World" : name)));
-//        //"requested: " + key + " v: " + value);
-//        message);
-//  }
+
+  @GET()
+  @Path("/{storeName}")
+  @PerformanceMetric("get-all")
+  public List getAll(@NotNull @PathParam("storeName") String storeName,
+      @Context Request request) {
+
+    ReadOnlyKeyValueStore store = this.stores.get(storeName);
+    if (store == null) {
+      throw Errors.storeNotFoundException(storeName);
+    }
+
+    log.debug(String.format("Requested all entries in store: %s", storeName));
+
+    KeyValueIterator all = store.all();
+    List allaslist = Lists.newArrayList(all);
+
+    return allaslist;
+  }
 
   @GET()
   @Path("/{storeName}/{key}")

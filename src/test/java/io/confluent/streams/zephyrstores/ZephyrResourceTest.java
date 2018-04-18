@@ -26,6 +26,8 @@ import io.confluent.rest.exceptions.RestException;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import javax.ws.rs.client.Invocation;
@@ -216,24 +218,24 @@ public class ZephyrResourceTest extends
 
   @Test
   public void testGetAllKeys() {
-    Response response = request("/store-name", acceptHeader).get();
+    Response response = request("/input-store", acceptHeader).get();
     assertEquals(Status.OK.getStatusCode(), response.getStatus());
-    ZephyrResource.HelloResponse messageWrongKeyThree = response
-        .readEntity(ZephyrResource.HelloResponse.class);
-    List pairs = Lists.emptyList();
-    assertThat(pairs).hasSize(3);
-    assertEquals("", messageWrongKeyThree.getMessage());
+
+    List all = response.readEntity(List.class);
+    assertThat(all).hasSize(3);
+    String asString = Arrays.toString(all.toArray());
+    assertEquals("[{key=key1, value=value1}, {key=key2, value=value2}, {key=key3, value=value3}]", asString);
   }
 
   @Test
   @Ignore
-  public void testGetAvroFormat(){
+  public void testGetAvroFormat() {
     throw new NotImplementedException();
   }
 
   @Test
   @Ignore
-  public void testGetCompoundKey(){
+  public void testGetCompoundKey() {
     throw new NotImplementedException();
   }
 
