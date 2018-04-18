@@ -130,10 +130,7 @@ public class ZephyrResourceTest extends
     Response response = request(contextPath + "/key1", acceptHeader).get();
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertEquals(mediatype, response.getMediaType().toString());
-
-    final ZephyrResource.HelloResponse message = response
-        .readEntity(ZephyrResource.HelloResponse.class);
-    assertEquals("value1", message.getMessage());
+    assertEquals("value1", response.readEntity(String.class));
   }
 
   @Test
@@ -178,9 +175,7 @@ public class ZephyrResourceTest extends
     // window store
     Response response = request(contextPath, acceptHeader, "key", "wrong-key").get();
     assertEquals(Status.OK.getStatusCode(), response.getStatus());
-    ZephyrResource.HelloResponse messageWrongKeyThree = response
-        .readEntity(ZephyrResource.HelloResponse.class);
-    assertEquals("", messageWrongKeyThree.getMessage());
+    assertEquals("", response);
   }
 
   @Test
@@ -189,9 +184,7 @@ public class ZephyrResourceTest extends
     // range query
     Response response = request(contextPath, acceptHeader, "key", "wrong-key").get();
     assertEquals(Status.OK.getStatusCode(), response.getStatus());
-    ZephyrResource.HelloResponse messageWrongKeyThree = response
-        .readEntity(ZephyrResource.HelloResponse.class);
-    assertEquals("", messageWrongKeyThree.getMessage());
+    assertEquals("", response);
   }
 
   @Test
@@ -203,6 +196,18 @@ public class ZephyrResourceTest extends
     assertThat(all).hasSize(3);
     String asString = Arrays.toString(all.toArray());
     assertEquals("[{key=key1, value=value1}, {key=key2, value=value2}, {key=key3, value=value3}]",
+        asString);
+  }
+
+  @Test
+  public void testGetKeyRange() {
+    Response response = request("/input-store/key2/key3", acceptHeader).get();
+    assertEquals(Status.OK.getStatusCode(), response.getStatus());
+
+    List all = response.readEntity(List.class);
+    assertThat(all).hasSize(2);
+    String asString = Arrays.toString(all.toArray());
+    assertEquals("[{key=key2, value=value2}, {key=key3, value=value3}]",
         asString);
   }
 

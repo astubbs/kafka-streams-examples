@@ -55,26 +55,6 @@ public class ZephyrResource implements StatestoreExposer {
     stores.putAll(allStateStores);
   }
 
-  /**
-   * A simple response entity with validation constraints.
-   */
-  public static class HelloResponse {
-
-    @NotEmpty
-    private String message;
-
-    public HelloResponse() { /* Jackson deserialization */ }
-
-    public HelloResponse(String message) {
-      this.message = message;
-    }
-
-    @JsonProperty
-    public String getMessage() {
-      return message;
-    }
-  }
-
   @GET()
   @Path("/{storeName}")
   @PerformanceMetric("get-all")
@@ -87,21 +67,16 @@ public class ZephyrResource implements StatestoreExposer {
     log.debug(String.format("Requested all entries in store: %s", storeName));
 
     KeyValueIterator all = store.all();
-    List allaslist = Lists.newArrayList(all);
+    List allAsList = Lists.newArrayList(all);
 
-    return allaslist;
+    return allAsList;
   }
 
   @GET()
   @Path("/{storeName}/{key}")
   @PerformanceMetric("get-key")
-  public HelloResponse get(@NotNull @PathParam("storeName") String storeName,
-      @NotNull @PathParam("key") String key, @Context Request request) {
-
-    // shouldn't be required
-//    if (StringUtils.isBlank(key)) {
-//      throw Errors.keyMissing
-//    }
+  public String get(@NotNull @PathParam("storeName") String storeName,
+      @NotNull @PathParam("key") String key) {
 
     ReadOnlyKeyValueStore store = this.stores.get(storeName);
     if (store == null) {
@@ -112,17 +87,26 @@ public class ZephyrResource implements StatestoreExposer {
     if (value == null) {
       throw Errors.keyNotFoundException(key, storeName);
     }
-    // Use a configuration setting to control the message that's written. The name is extracted from
-    // the query parameter "name", or defaults to "World". You can test this API with curl:
-    // curl http://localhost:8080/hello
-    //   -> {"message":"Hello, World!"}
-    // curl http://localhost:8080/hello?name=Bob
-    //   -> {"message":"Hello, Bob!"}
-    log.debug("requested: " + key + " v: " + value);
-    return new HelloResponse(
-//        String.format(config.getString(HelloWorldRestConfig.GREETING_CONFIG),
-//            (name == null ? "World" : name)));
-        //"requested: " + key + " v: " + value);
-        value.toString());
+
+    log.debug("Requested store: {} key: {}", storeName, key);
+    return value.toString();
+  }
+
+  @GET()
+  @Path("/{storeName}/{keyFrom}/{keyTo}")
+  @PerformanceMetric("get-key-range")
+  public List getRange(@NotNull @PathParam("storeName") String storeName,
+      @NotNull @PathParam("keyFrom") String keyFrom, @NotNull @PathParam("keyTo") String keyTo) {
+
+    ReadOnlyKeyValueStore store = this.stores.get(storeName);
+    if (store == null) {
+      throw Errors.storeNotFoundException(storeName);
+    }
+
+    KeyValueIterator range = store.range(keyFrom, keyTo);
+    List allAsList = Lists.newArrayList(range);
+
+    log.debug("Requested store: {} key from: {} key to: {}", storeName, keyFrom, keyTo);
+    return allAsList;
   }
 }
